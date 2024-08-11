@@ -1,0 +1,48 @@
+---
+- name: Configure client
+  hosts: client
+  become: true
+  tasks:
+    - name: Update
+      ansible.builtin.apt:
+        update_cache: true
+    - name: Install borgbackup
+      ansible.builtin.apt:
+        name: borgbackup
+        state: latest
+ #   - name: Generate keys
+ #     community.crypto.openssh_keypair:
+ #       path: /tmp/id_rsa
+ # Вместо генерирования ключевой пары на клиенте в данном случае заберем всё нужные ключи у вагранта.
+    - name: Install private key
+      ansible.builtin.copy:
+        force: true
+        remote_src: true
+        src: /vagrant/.vagrant/machines/backup/virtualbox/private_key
+        dest: /home/vagrant/.ssh/id_rsa
+        owner: vagrant
+        group: vagrant
+        mode: '600'
+    - name: Server to known_hosts
+      become: false
+      ansible.builtin.shell:
+        cmd: "ssh-keyscan -t ed25519 192.168.56.110 >> .ssh/known_hosts"
+    - name: Repository init
+      become: false
+      ansible.builtin.shell:
+        cmd: "/usr/bin/borg init --encryption=repokey borg@192.168.56.110:/var/backup/"
+      environment:
+        BORG_PASSPHRASE: "Otus1234"
+    - name: Install service
+      ansible.builtin.copy:
+        src: borg-backup.service
+        dest: /etc/systemd/system/borg-backup.service
+    - name: Install timer
+      ansible.builtin.copy:
+        src: borg-backup.timer
+        dest: /etc/systemd/system/borg-backup.timer
+    - name: Enable timer
+      ansible.builtin.systemd_service:
+        name: borg-backup.timer
+        state: started
+        enabled: true
