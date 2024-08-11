@@ -23,10 +23,23 @@
         owner: vagrant
         group: vagrant
         mode: '600'
+    - name: Root private key
+      ansible.builtin.copy:
+        force: true
+        remote_src: true
+        src: /vagrant/.vagrant/machines/backup/virtualbox/private_key
+        dest: /root/.ssh/id_rsa
+        mode: '600'        
     - name: Server to known_hosts
       become: false
       ansible.builtin.shell:
         cmd: "ssh-keyscan -t ed25519 192.168.56.110 >> .ssh/known_hosts"
+    - name: Root known_hosts
+      ansible.builtin.copy:
+        force: true
+        remote_src: true
+        src: /home/vagrant/.ssh/known_hosts
+        dest: /root/.ssh/known_hosts
     - name: Repository init
       become: false
       ansible.builtin.shell:
